@@ -1,8 +1,26 @@
 version: '3'
 services:
+  rasa:
+    image: rasa/rasa:3.6.2
+    ports:
+      - "5005:5005"
+    volumes:
+      - ./:/app
+    command: run -m models --enable-api --cors "*"
+
+  action-server:
+    image: rasa/rasa-sdk:3.6.2
+    ports:
+      - "5055:5055"
+    volumes:
+      - ./actions:/app/actions
+
   web:
     image: nginx:alpine
     volumes:
       - ./web:/usr/share/nginx/html
+      - ./web/nginx.conf:/etc/nginx/conf.d/default.conf
     ports:
       - "8080:80"
+    depends_on:
+      - rasa

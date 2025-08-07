@@ -1,17 +1,299 @@
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
+    <title>Rasa Chat Bot</title>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Hello Coolify!</title>
     <style>
-        body{
-            font-family: Verdana, Geneva, Tahoma, sans-serif;
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: Arial, sans-serif;
+            line-height: 1.6;
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            background-color: #f0f2f5;
+        }
+
+        #chat-container {
+            width: 100%;
+            max-width: 500px;
+            background: white;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+            overflow: hidden;
+        }
+
+        #chat-header {
+            background: #2196F3;
+            color: white;
+            padding: 15px;
+            text-align: center;
+            font-size: 1.2em;
+        }
+
+        #chat-messages {
+            height: 500px;
+            overflow-y: auto;
+            padding: 20px;
+            background-color: #fff;
+        }
+
+        #input-container {
+            padding: 20px;
+            border-top: 1px solid #eee;
+            background-color: white;
+            display: flex;
+            gap: 10px;
+        }
+
+        #user-input {
+            flex: 1;
+            padding: 12px;
+            border: 1px solid #ddd;
+            border-radius: 20px;
+            font-size: 14px;
+            outline: none;
+            transition: border-color 0.3s;
+        }
+
+        #user-input:focus {
+            border-color: #2196F3;
+        }
+
+        #send-button {
+            padding: 12px 24px;
+            background-color: #2196F3;
+            color: white;
+            border: none;
+            border-radius: 20px;
+            cursor: pointer;
+            transition: background-color 0.3s;
+        }
+
+        #send-button:hover {
+            background-color: #1976D2;
+        }
+
+        .message {
+            margin-bottom: 15px;
+            padding: 10px 15px;
+            border-radius: 15px;
+            max-width: 80%;
+            word-wrap: break-word;
+        }
+
+        .user-message {
+            background-color: #E3F2FD;
+            margin-left: auto;
+            border-bottom-right-radius: 5px;
+        }
+
+        .bot-message {
+            background-color: #F5F5F5;
+            margin-right: auto;
+            border-bottom-left-radius: 5px;
+        }
+
+        .message-time {
+            font-size: 0.7em;
+            color: #666;
+            margin-top: 5px;
+            text-align: right;
+        }
+
+        .typing-indicator {
+            display: none;
+            padding: 10px;
+            margin-bottom: 15px;
+        }
+
+        .typing-indicator span {
+            height: 8px;
+            width: 8px;
+            background-color: #93959f;
+            border-radius: 50%;
+            display: inline-block;
+            margin: 0 1px;
+            animation: bounce 1.3s ease infinite;
+        }
+
+        .typing-indicator span:nth-child(2) { animation-delay: 0.15s; }
+        .typing-indicator span:nth-child(3) { animation-delay: 0.3s; }
+
+        @keyframes bounce {
+            0%, 60%, 100% { transform: translateY(0); }
+            30% { transform: translateY(-4px); }
         }
     </style>
 </head>
 <body>
-    <h1>Hello Coolify!</h1>
-    
+    <div id="chat-container">
+        <div id="chat-header">
+            Rasa Chat Bot
+        </div>
+        <div id="chat-messages">
+            <div class="message bot-message">
+                Hi! I'm your assistant. How can I help you today?
+                <div class="message-time"></div>
+            </div>
+        </div>
+        <div class="typing-indicator">
+            <span></span>
+            <span></span>
+            <span></span>
+        </div>
+        <div id="input-container">
+            <input type="text" id="user-input" placeholder="Type your message..." autocomplete="off">
+            <button id="send-button">Send</button>
+        </div>
+    </div>
+
+    <script>
+        const chatMessages = document.getElementById('chat-messages');
+        const userInput = document.getElementById('user-input');
+        const sendButton = document.getElementById('send-button');
+        const typingIndicator = document.querySelector('.typing-indicator');
+
+        function getFormattedTime() {
+            return new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+        }
+
+        function addMessage(message, isUser) {
+            const messageDiv = document.createElement('div');
+            messageDiv.className = `message ${isUser ? 'user-message' : 'bot-message'}`;
+            
+            const messageContent = document.createElement('span');
+            messageContent.textContent = message;
+            messageDiv.appendChild(messageContent);
+            
+            const timeDiv = document.createElement('div');
+            timeDiv.className = 'message-time';
+            timeDiv.textContent = getFormattedTime();
+            messageDiv.appendChild(timeDiv);
+            
+            chatMessages.appendChild(messageDiv);
+            chatMessages.scrollTop = chatMessages.scrollHeight;
+        }
+
+        function showTypingIndicator() {
+            typingIndicator.style.display = 'block';
+            chatMessages.scrollTop = chatMessages.scrollHeight;
+        }
+
+        function hideTypingIndicator() {
+            typingIndicator.style.display = 'none';
+        }
+
+        async function sendMessage() {
+            const message = userInput.value.trim();
+            if (!message) return;
+
+            // Disable input while processing
+            userInput.disabled = true;
+            sendButton.disabled = true;
+
+            // Add user message
+            addMessage(message, true);
+            userInput.value = '';
+
+            // Show typing indicator
+            showTypingIndicator();
+
+            try {
+                console.log('Sending message to Rasa server...');
+                const response = await fetch('/webhooks/rest/webhook', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Accept': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        sender: 'user',
+                        message: message
+                    })
+                });
+
+                console.log('Response status:', response.status);
+                if (!response.ok) {
+                    const errorText = await response.text();
+                    console.error('Server error response:', errorText);
+                    throw new Error(`HTTP error! status: ${response.status}, details: ${errorText}`);
+                }
+                
+                const data = await response.json();
+                console.log('Received response data:', data);
+                
+                // Hide typing indicator
+                hideTypingIndicator();
+
+                // Add bot responses
+                if (data.length > 0) {
+                    data.forEach(response => {
+                        if (response.text) {
+                            addMessage(response.text, false);
+                        }
+                        if (response.image) {
+                            const imageMessage = document.createElement('div');
+                            imageMessage.className = 'message bot-message';
+                            const image = document.createElement('img');
+                            image.src = response.image;
+                            image.style.maxWidth = '100%';
+                            imageMessage.appendChild(image);
+                            chatMessages.appendChild(imageMessage);
+                        }
+                    });
+                } else {
+                    addMessage("I'm sorry, I didn't quite understand that. Could you rephrase?", false);
+                }
+            } catch (error) {
+                console.error('Detailed error information:', {
+                    name: error.name,
+                    message: error.message,
+                    stack: error.stack
+                });
+                hideTypingIndicator();
+                
+                // Provide more specific error messages
+                if (error.name === 'TypeError' && error.message.includes('fetch')) {
+                    const errorMessage = 'Unable to connect to the bot server. Please check if:\n' +
+                        '1. The Rasa server is running\n' +
+                        '2. It\'s accessible at http://localhost:5005\n' +
+                        '3. CORS is properly configured';
+                    addMessage(errorMessage, false);
+                } else if (error.message.includes('HTTP error!')) {
+                    addMessage(`The bot server responded with an error: ${error.message}`, false);
+                } else if (error.name === 'SyntaxError') {
+                    addMessage('The server response was not in the expected format. Please check the Rasa server logs.', false);
+                } else {
+                    addMessage(`An unexpected error occurred: ${error.message}. Check the browser console for details.`, false);
+                }
+            }
+
+            // Re-enable input
+            userInput.disabled = false;
+            sendButton.disabled = false;
+            userInput.focus();
+        }
+
+        sendButton.addEventListener('click', sendMessage);
+        
+        userInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                sendMessage();
+            }
+        });
+
+        // Focus input on page load
+        userInput.focus();
+    </script>
 </body>
 </html>
